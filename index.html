@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
+<title>АккордТок — лента аккордов</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden;background:#07070c;color:#fff;
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,Arial,sans-serif}
+button{font-family:inherit}
+
+/* ---------- FEED ---------- */
+#feed{height:100dvh;height:100vh;overflow-y:auto;scroll-snap-type:y mandatory;
+  overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+#feed::-webkit-scrollbar{display:none}
+.card{position:relative;height:100dvh;height:100vh;scroll-snap-align:start;
+  scroll-snap-stop:always;overflow:hidden;display:flex}
+.bg{position:absolute;inset:0;
+  background:
+    radial-gradient(120% 70% at 20% 0%, var(--c1) 0%, transparent 60%),
+    radial-gradient(100% 70% at 90% 100%, var(--c2) 0%, transparent 65%),
+    #0a0a12;
+  opacity:.95}
+.bg::after{content:'';position:absolute;inset:0;
+  background:radial-gradient(80% 50% at 50% 45%, rgba(255,255,255,.06), transparent 70%)}
+
+.wrap{position:relative;width:100%;max-width:720px;margin:0 auto;display:flex;
+  padding:calc(env(safe-area-inset-top,0px) + 58px) 10px 68px;gap:4px}
+.col{flex:1;min-width:0;display:flex;flex-direction:column;gap:10px}
+.rail{flex:0 0 50px;display:flex;flex-direction:column;justify-content:flex-end;
+  align-items:center;gap:14px;padding-bottom:6px}
+
+/* meta */
+.metarow{display:flex;flex-wrap:wrap;gap:6px}
+.badge{font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;
+  padding:4px 9px;border-radius:20px;background:rgba(255,255,255,.1);
+  border:1px solid rgba(255,255,255,.1);color:#cfd6ea}
+.badge.lvl-1{background:rgba(80,220,140,.16);color:#7ef0b0;border-color:rgba(80,220,140,.3)}
+.badge.lvl-2{background:rgba(255,200,80,.16);color:#ffd97a;border-color:rgba(255,200,80,.3)}
+.badge.lvl-3{background:rgba(255,110,110,.16);color:#ff9d9d;border-color:rgba(255,110,110,.3)}
+.title{margin:2px 0 0;font-size:26px;line-height:1.1;font-weight:800;letter-spacing:-.6px;
+  text-shadow:0 2px 20px rgba(0,0,0,.5)}
+.sub{margin:0;font-size:12.5px;color:#a8b0c8}
+
+/* progression chips */
+.prog{display:flex;gap:8px;overflow-x:auto;padding:2px 0;flex-wrap:nowrap;
+  scrollbar-width:none}
+.prog::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;font-size:17px;font-weight:700;padding:7px 14px;border-radius:12px;
+  border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.07);color:#fff;
+  cursor:pointer;transition:.18s;letter-spacing:-.2px}
+.chip.active{background:rgba(120,190,255,.25);border-color:rgba(150,205,255,.8);
+  box-shadow:0 0 22px rgba(90,170,255,.45);transform:translateY(-2px) scale(1.04)}
+
+/* viz */
+.viz{flex:1 1 auto;display:flex;align-items:center;gap:10px;overflow-x:auto;
+  overflow-y:hidden;padding:4px 2px;-webkit-overflow-scrolling:touch;min-height:0}
+.viz::-webkit-scrollbar{display:none}
+.viz.piano-mode{display:block;overflow:visible;padding-top:10px}
+.dg{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:3px;
+  color:#dde3f2;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);
+  border-radius:14px;padding:9px 7px 6px;cursor:pointer;transition:.2s;user-select:none}
+.dg span{font-size:12px;font-weight:700}
+.dg.active{background:rgba(120,190,255,.2);border-color:rgba(150,205,255,.7);
+  box-shadow:0 0 26px rgba(90,170,255,.4);transform:translateY(-2px)}
+.dg svg{display:block}
+
+.pianowrap{position:relative;width:100%;height:104px;border-radius:0 0 8px 8px;
+  filter:drop-shadow(0 8px 24px rgba(0,0,0,.5))}
+.piano{position:relative;display:flex;height:100%;width:100%}
+.wk{position:relative;background:linear-gradient(#fff,#e6e9f2);border:1px solid #aeb5c9;
+  border-radius:0 0 5px 5px;display:flex;align-items:flex-end;justify-content:center;
+  padding-bottom:4px;transition:.15s}
+.wk span{font-size:8px;color:#8b92a6;font-weight:600}
+.wk.on{background:linear-gradient(#9ad6ff,#3f9dff)}
+.wk.on span{color:#062539}
+.bk{position:absolute;top:0;height:62%;background:linear-gradient(#2b3140,#0c0f16);
+  border-radius:0 0 4px 4px;z-index:2;box-shadow:0 3px 6px rgba(0,0,0,.6);transition:.15s}
+.bk.on{background:linear-gradient(#54b0ff,#1a68cc)}
+.pianolabel{text-align:center;font-size:13px;font-weight:700;color:#bcd0f0;margin-top:8px}
+
+/* controls */
+.ctrl{display:flex;align-items:center;gap:8px}
+.play{width:58px;height:58px;flex:0 0 auto;border-radius:50%;border:0;cursor:pointer;
+  font-size:20px;color:#04121f;font-weight:800;
+  background:linear-gradient(140deg,#8fd4ff,#3d9bff);
+  box-shadow:0 8px 28px rgba(61,155,255,.45);transition:.15s;display:flex;
+  align-items:center;justify-content:center;padding-left:3px}
+.play:active{transform:scale(.94)}
+.play.playing{background:linear-gradient(140deg,#ffd08f,#ff9d3d);
+  box-shadow:0 8px 28px rgba(255,157,61,.45);padding-left:0}
+select.pattern{flex:1;min-width:0;background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.14);color:#fff;border-radius:14px;
+  padding:13px 32px 13px 13px;font-size:13px;font-weight:600;appearance:none;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path d='M2 4l4 4 4-4' fill='none' stroke='%23aab2c8' stroke-width='1.6' stroke-linecap='round'/></svg>");
+  background-repeat:no-repeat;background-position:right 12px center;cursor:pointer}
+select.pattern option{background:#151722;color:#fff}
+.iconbtn{width:46px;height:46px;flex:0 0 auto;border-radius:14px;cursor:pointer;
+  background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);
+  color:#8d95ab;font-size:17px;transition:.15s}
+.iconbtn.on{color:#7fd2ff;border-color:rgba(127,210,255,.5);
+  background:rgba(127,210,255,.14);box-shadow:0 0 18px rgba(127,210,255,.25)}
+
+.bpmrow{display:flex;align-items:center;gap:10px;font-size:11px;color:#9aa2b8;
+  font-weight:600;letter-spacing:.3px}
+.bpmrow input[type=range]{flex:1;accent-color:#4aa8ff;height:22px}
+.bpmrow b{color:#dbe3f5;font-size:12px;min-width:26px;text-align:right}
+
+/* rail */
+.rail-item{display:flex;flex-direction:column;align-items:center;gap:3px}
+.rail-btn{width:44px;height:44px;border-radius:50%;cursor:pointer;font-size:17px;
+  background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.12);
+  color:#fff;backdrop-filter:blur(10px);transition:.15s}
+.rail-btn:active{transform:scale(.9)}
+.rail-btn.on{color:#ff6b8a;border-color:rgba(255,107,138,.5);
+  background:rgba(255,107,138,.16)}
+.rail-item span{font-size:10px;color:#a8b0c8;font-weight:700}
+
+/* ---------- TOPBAR ---------- */
+.topbar{position:fixed;top:0;left:0;right:0;height:54px;z-index:30;display:flex;
+  align-items:center;justify-content:space-between;padding:0 12px;
+  padding-top:env(safe-area-inset-top,0px);
+  background:linear-gradient(180deg,rgba(6,6,12,.92),rgba(6,6,12,0));
+  pointer-events:none}
+.topbar>*{pointer-events:auto}
+.logo{font-size:15px;font-weight:800;letter-spacing:-.4px;
+  text-shadow:0 2px 12px rgba(0,0,0,.6)}
+.logo em{font-style:normal;color:#5ab4ff}
+.seg{display:flex;background:rgba(255,255,255,.1);border-radius:12px;padding:3px;gap:2px;
+  backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.08)}
+.seg button{background:none;border:0;color:#aab2c8;font-size:11px;font-weight:700;
+  padding:6px 9px;border-radius:9px;cursor:pointer;transition:.15s}
+.seg button.on{background:rgba(255,255,255,.18);color:#fff}
+
+/* ---------- BOTTOM NAV ---------- */
+.bottomnav{position:fixed;bottom:0;left:0;right:0;height:58px;z-index:30;display:flex;
+  align-items:center;justify-content:space-around;
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  background:rgba(7,7,12,.82);backdrop-filter:blur(16px);
+  border-top:1px solid rgba(255,255,255,.07)}
+.bottomnav button{background:none;border:0;color:#7d859c;font-size:10px;font-weight:700;
+  display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;
+  padding:6px 18px;border-radius:12px;transition:.15s;letter-spacing:.2px}
+.bottomnav button i{font-style:normal;font-size:19px}
+.bottomnav button.on{color:#5ab4ff}
+
+/* ---------- MODAL / TOAST ---------- */
+.modal{position:fixed;inset:0;z-index:60;display:flex;align-items:center;
+  justify-content:center;padding:16px;background:rgba(0,0,0,.7);backdrop-filter:blur(8px)}
+.modal.hidden{display:none}
+.sheet{width:100%;max-width:430px;background:#12131c;border:1px solid rgba(255,255,255,.1);
+  border-radius:22px;padding:22px;box-shadow:0 30px 80px rgba(0,0,0,.7)}
+.sheet h3{margin:0 0 16px;font-size:17px;letter-spacing:-.3px}
+.sheet label{display:block;font-size:11px;color:#9aa2b8;font-weight:700;margin-bottom:12px;
+  letter-spacing:.3px;text-transform:uppercase}
+.sheet input{display:block;width:100%;margin-top:6px;padding:12px 14px;border-radius:12px;
+  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;
+  font-size:15px;font-family:inherit;outline:none;text-transform:none;letter-spacing:0}
+.sheet input:focus{border-color:#4aa8ff;background:rgba(74,168,255,.08)}
+.row2{display:flex;gap:12px}
+.row2 label{flex:1}
+.sheet-actions{display:flex;gap:10px;margin-top:8px}
+.btn{flex:1;padding:13px;border-radius:14px;border:0;font-size:14px;font-weight:700;
+  cursor:pointer;transition:.15s}
+.btn.ghost{background:rgba(255,255,255,.08);color:#c3cadd}
+.btn.primary{background:linear-gradient(140deg,#8fd4ff,#3d9bff);color:#04121f}
+.btn:active{transform:scale(.97)}
+.empty{height:100dvh;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:10px;color:#7d859c;font-size:14px;text-align:center;padding:30px}
+.empty b{font-size:40px}
+.toast{position:fixed;left:50%;bottom:88px;transform:translate(-50%,20px);z-index:80;
+  background:rgba(30,32,44,.96);border:1px solid rgba(255,255,255,.12);
+  padding:11px 20px;border-radius:30px;font-size:13px;font-weight:600;opacity:0;
+  pointer-events:none;transition:.25s;white-space:nowrap}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">🎸 Аккорд<em>Ток</em></div>
+  <div class="seg" id="seg">
+    <button data-inst="guitar" class="on">Гитара</button>
+    <button data-inst="ukulele">Укулеле</button>
+    <button data-inst="piano">Пиано</button>
+  </div>
+</div>
+
+<div id="feed"></div>
+
+<nav class="bottomnav">
+  <button data-nav="feed" class="on"><i>🎵</i>Лента</button>
+  <button data-nav="saved"><i>⭐</i>Избранное</button>
+  <button data-nav="create"><i>➕</i>Создать</button>
+</nav>
+
+<div class="modal hidden" id="modal">
+  <div class="sheet">
+    <h3>Новый аккорд-пост</h3>
+    <label>Название<input id="m-title" placeholder="Моя песня" maxlength="40"></label>
+    <label>Аккорды через пробел<input id="m-chords" placeholder="Am F C G" maxlength="80"></label>
+    <div class="row2">
+      <label>Темп (BPM)<input id="m-bpm" type="number" value="90" min="40" max="200"></label>
+      <label>Тональность<input id="m-key" placeholder="Am" maxlength="6"></label>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn ghost" id="m-cancel">Отмена</button>
+      <button class="btn primary" id="m-add">Добавить</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* =========================================================
+   1. МУЗЫКАЛЬНАЯ ТЕОРИЯ
+   ========================================================= */
+const NOTE_PC = {C:0,'C#':1,Db:1,D:2,'D#':3,Eb:3,E:4,F:5,'F#':6,Gb:6,
+                 G:7,'G#':8,Ab:8,A:9,'A#':10,Bb:10,B:11};
+const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+
+const QUAL_LIST = [
+  ['maj9',[0,4,7,11,14]], ['maj7',[0,4,7,11]], ['m7b5',[0,3,6,10]],
+  ['dim7',[0,3,6,9]],     ['add9',[0,4,7,14]], ['sus4',[0,5,7]],
+  ['sus2',[0,2,7]],       ['m9',[0,3,7,10,14]],['m6',[0,3,7,9]],
+  ['m7',[0,3,7,10]],      ['dim',[0,3,6]],     ['aug',[0,4,8]],
+  ['maj',[0,4,7]],        ['sus',[0,5,7]],     ['6',[0,4,7,9]],
+  ['9',[0,4,7,10,14]],    ['7',[0,4,7,10]],    ['5',[0,7]],
+  ['m',[0,3,7]],          ['',[0,4,7]]
+];
+
+function parseChord(name){
+  if(!name) return null;
+  const m = /^([A-Ga-g])([#b]?)(.*)$/.exec(String(name).trim());
+  if(!m) return null;
+  let pc = NOTE_PC[m[1].toUpperCase() + m[2]];
+  if(pc === undefined) pc = NOTE_PC[m[1].toUpperCase()];
+  if(pc === undefined) return null;
+
+  let rest = m[3].toLowerCase().replace(/[\s,]/g,'');
+  let bassPc = null;
+  if(rest.includes('/')){
+    const parts = rest.split('/');
+    rest = parts[0];
+    const bm = /^([a-g])([#b]?)/.exec(parts[1]);
+    if(bm){ const v = NOTE_PC[bm[1].toUpperCase()+bm[2]]; if(v!==undefined) bassPc = v; }
+  }
+  let intervals = null, quality = '';
+  for(const [k,iv] of QUAL_LIST){
+    if(rest.startsWith(k)){ intervals = iv; quality = k; break; }
+  }
+  if(!intervals) return null;
+  return {pc, intervals, bassPc, quality};
+}
+
+function normQual(q){
+  if(q===''||q==='maj') return '';
+  if(q==='m'||q==='7'||q==='m7'||q==='maj7') return q;
+  return null;
+}
+
+/* ---- аппликатуры гитары ---- */
+const GUITAR_SHAPES = {
+  'C':[-1,3,2,0,1,0],'Cm':[-1,3,5,5,4,3],'C7':[-1,3,2,3,1,0],'Cmaj7':[-1,3,2,0,0,0],
+  'Cm7':[-1,3,5,3,4,3],'Cadd9':[-1,3,2,0,3,3],'Csus4':[-1,3,3,0,1,1],'C6':[-1,3,2,2,1,0],
+  'C/G':[3,3,2,0,1,0],'C#m':[-1,4,6,6,5,4],'C#':[-1,4,6,6,6,4],'Db':[-1,4,6,6,6,4],
+  'D':[-1,-1,0,2,3,2],'Dm':[-1,-1,0,2,3,1],'D7':[-1,-1,0,2,1,2],'Dmaj7':[-1,-1,0,2,2,2],
+  'Dm7':[-1,-1,0,2,1,1],'Dsus4':[-1,-1,0,2,3,3],'Dsus2':[-1,-1,0,2,3,0],
+  'D6':[-1,-1,0,2,0,2],'D/F#':[2,-1,0,2,3,2],'Dm/F':[1,-1,0,2,3,1],
+  'Eb':[-1,6,5,3,4,3],'Ebm':[-1,6,8,8,7,6],'Eb7':[-1,6,5,6,4,3],'D#m':[-1,6,8,8,7,6],
+  'E':[0,2,2,1,0,0],'Em':[0,2,2,0,0,0],'E7':[0,2,0,1,0,0],'Emaj7':[0,2,1,1,0,0],
+  'Em7':[0,2,2,0,3,0],'Esus4':[0,2,2,2,0,0],'E/G#':[4,2,2,1,0,0],'E5':[0,2,2,-1,-1,-1],
+  'F':[1,3,3,2,1,1],'Fm':[1,3,3,1,1,1],'F7':[1,3,1,2,1,1],'Fmaj7':[-1,-1,3,2,1,0],
+  'Fm7':[1,3,1,1,1,1],'Fsus4':[1,3,3,3,1,1],'F6':[-1,-1,3,2,3,0],
+  'F#':[2,4,4,3,2,2],'F#m':[2,4,4,2,2,2],'F#m7':[2,4,2,2,2,2],'F#7':[2,4,2,3,2,2],
+  'Gb':[2,4,4,3,2,2],'Gbm':[2,4,4,2,2,2],
+  'G':[3,2,0,0,0,3],'Gm':[3,5,5,3,3,3],'G7':[3,2,0,0,0,1],'Gmaj7':[3,2,0,0,0,2],
+  'Gm7':[3,5,3,3,3,3],'Gsus4':[3,3,0,0,1,3],'Gadd9':[3,2,0,2,0,3],'G6':[3,2,0,0,0,0],
+  'G/B':[-1,2,0,0,0,3],'G/D':[-1,-1,0,0,0,3],'G/A':[-1,0,0,0,0,3],
+  'Ab':[4,6,6,5,4,4],'G#m':[4,6,6,4,4,4],'Abm':[4,6,6,4,4,4],'G#':[4,6,6,5,4,4],
+  'A':[-1,0,2,2,2,0],'Am':[-1,0,2,2,1,0],'A7':[-1,0,2,0,2,0],'Amaj7':[-1,0,2,1,2,0],
+  'Am7':[-1,0,2,0,1,0],'Asus4':[-1,0,2,2,3,0],'Asus2':[-1,0,2,2,0,0],
+  'A6':[-1,0,2,2,2,2],'Am6':[-1,0,2,2,1,2],'A/C#':[-1,4,2,2,2,0],'A/E':[0,0,2,2,2,0],
+  'A5':[-1,0,2,2,-1,-1],'Aadd9':[-1,0,2,2,0,0],
+  'Bb':[-1,1,3,3,3,1],'Bbm':[-1,1,3,3,2,1],'Bb7':[-1,1,3,1,3,1],'Bbmaj7':[-1,1,3,2,3,1],
+  'Bbm7':[-1,1,3,1,2,1],'A#':[-1,1,3,3,3,1],'A#m':[-1,1,3,3,2,1],
+  'B':[-1,2,4,4,4,2],'Bm':[-1,2,4,4,3,2],'B7':[-1,2,1,2,0,2],'Bm7':[-1,2,0,2,0,2],
+  'Bmaj7':[-1,2,4,3,4,2],'Bm7b5':[-1,2,3,2,3,-1],'Bdim':[-1,2,3,4,3,-1]
+};
+const BARRE_E = {'':[0,2,2,1,0,0],'m':[0,2,2,0,0,0],'7':[0,2,0,1,0,0],
+                 'm7':[0,2,0,0,0,0],'maj7':[0,2,1,1,0,0]};
+const BARRE_A = {'':[-1,0,2,2,2,0],'m':[-1,0,2,2,1,0],'7':[-1,0,2,0,2,0],
+                 'm7':[-1,0,2,0,1,0],'maj7':[-1,0,2,1,2,0]};
+
+/* ---- аппликатуры укулеле ---- */
+const UKE_SHAPES = {
+  'C':[0,0,0,3],'Cm':[0,3,3,3],'C7':[0,0,0,1],'Cmaj7':[0,0,0,2],'Cm7':[3,3,3,3],
+  'C#m':[1,1,0,4],'Db':[1,1,1,4],
+  'D':[2,2,2,0],'Dm':[2,2,1,0],'D7':[2,2,2,3],'Dm7':[2,2,1,3],'Dmaj7':[2,2,2,4],
+  'E':[4,4,4,2],'Em':[0,4,3,2],'E7':[1,2,0,2],'Em7':[0,2,0,2],
+  'F':[2,0,1,0],'Fm':[1,0,1,3],'F7':[2,3,1,3],'Fm7':[1,3,1,3],
+  'F#m':[2,1,2,0],'Gb':[3,1,2,1],
+  'G':[0,2,3,2],'Gm':[0,2,3,1],'G7':[0,2,1,2],'Gm7':[0,2,1,1],'Gmaj7':[0,2,2,2],
+  'A':[2,1,0,0],'Am':[2,0,0,0],'A7':[0,1,0,0],'Am7':[0,0,0,0],'Amaj7':[1,1,0,0],
+  'Bb':[3,2,1,1],'Bbm':[3,1,1,1],'A#':[3,2,1,1],
+  'B':[4,3,2,2],'Bm':[4,2,2,2],'B7':[2,3,2,2],'Bm7':[2,2,2,2]
+};
+const UKE_FORMS = {'':[2,1,0,0],'m':[2,0,0,0],'7':[0,1,0,0],
+                   'm7':[0,0,0,0],'maj7':[1,1,0,0]};
+
+const GUITAR_TUNING = [40,45,50,55,59,64];  // E2 A2 D3 G3 B3 E4
+const UKE_TUNING    = [67,60,64,69];        // G4 C4 E4 A4
+
+function barreShape(name){
+  const p = parseChord(name);
+  if(!p) return null;
+  const q = normQual(p.quality);
+  if(q === null) return null;
+  const nE = (p.pc - 4 + 12) % 12;
+  const nA = (p.pc - 9 + 12) % 12;
+  const useE = nE <= nA;
+  const n = useE ? nE : nA;
+  const base = useE ? BARRE_E[q] : BARRE_A[q];
+  return base.map(f => f < 0 ? -1 : f + n);
+}
+
+function shapeFor(name, inst){
+  if(inst === 'piano') return null;
+  if(inst === 'ukulele'){
+    if(UKE_SHAPES[name]) return UKE_SHAPES[name];
+    const p = parseChord(name);
+    if(!p) return null;
+    const q = normQual(p.quality);
+    if(q === null || !UKE_FORMS[q]) return null;
+    const shift = (p.pc - 9 + 12) % 12;
+    const sh = UKE_FORMS[q].map(f => f + shift);
+    if(Math.max(...sh) > 12) return null;
+    return sh;
+  }
+  if(GUITAR_SHAPES[name]) return GUITAR_SHAPES[name];
+  return barreShape(name);
+}
+
+/* =========================================================
+   2. ЗВУК (Karplus–Strong + расписание)
+   ========================================================= */
+const midiToFreq = m => 440 * Math.pow(2, (m - 69) / 12);
+
+const Engine = {
+  ac:null, bus:null, cache:new Map(),
+  init(){
+    if(!this.ac){
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if(!AC) return null;
+      this.ac = new AC();
+      this.bus = this.ac.createGain();
+      this.bus.gain.value = 0.8;
+      this.bus.connect(this.ac.destination);
+    }
+    if(this.ac.state === 'suspended') this.ac.resume();
+    return this.ac;
+  },
+  buffer(freq){
+    const key = Math.round(freq * 8);
+    let b = this.cache.get(key);
+    if(b) return b;
+    if(this.cache.size > 400) this.cache.clear();
+    const ac = this.ac, sr = ac.sampleRate;
+    const N = Math.max(2, Math.round(sr / freq));
+    const len = Math.floor(sr * 2.4);
+    b = ac.createBuffer(1, len, sr);
+    const d = b.getChannelData(0);
+    for(let i = 0; i < N; i++) d[i] = Math.random() * 2 - 1;
+    const g = 0.99993;
+    for(let i = N; i < len; i++){
+      const a = d[i - N];
+      const c = (i - N - 1 >= 0) ? d[i - N - 1] : a;
+      d[i] = (a + c) * 0.5 * g;
+    }
+    const fade = Math.floor(sr * 0.08);
+    for(let i = len - fade; i < len; i++) d[i] *= (len - i) / fade;
+    this.cache.set(key, b);
+    return b;
+  },
+  note(freq, time, gain, dur){
+    if(!this.ac) return;
+    const ac = this.ac;
+    const src = ac.createBufferSource();
+    src.buffer = this.buffer(freq);
+    const lp = ac.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = Math.min(11000, Math.max(1400, freq * 9));
+    const g = ac.createGain();
+    g.gain.setValueAtTime(0.0001, time);
+    g.gain.exponentialRampToValueAtTime(Math.max(0.0005, gain), time + 0.007);
+    src.connect(lp); lp.connect(g); g.connect(this.bus);
+    src.start(time);
+    src.stop(time + dur);
+  },
+  strum(midis, time, dir, gain){
+    const arr = midis.filter(m => m != null);
+    const order = (dir === 'U') ? arr.slice().reverse() : arr;
+    const dt = (dir === 'U') ? 0.014 : 0.018;
+    const g0 = (dir === 'U') ? gain * 0.62 : gain;
+    order.forEach((m, i) => {
+      this.note(midiToFreq(m), time + i * dt,
+                g0 * (1 - Math.min(0.45, i * 0.05)),
+                dir === 'U' ? 1.0 : 2.2);
+    });
+  }
+};
+
+/* ---- паттерны ---- */
+const PATTERNS = {
+  six:      {name:'Бой «шестёрка» ↓↓↑↑↓↑', steps:[
+              {t:0,d:'D'},{t:1,d:'D'},{t:1.5,d:'U'},{t:2,d:'U'},{t:2.5,d:'D'},{t:3,d:'U'}]},
+  four:     {name:'Бой «четвёрка» ↓↑↓↑', steps:[
+              {t:0,d:'D'},{t:1,d:'U'},{t:2,d:'D'},{t:3,d:'U'}]},
+  quarters: {name:'Ровные четверти ↓↓↓↓', steps:[
+              {t:0,d:'D'},{t:1,d:'D'},{t:2,d:'D'},{t:3,d:'D'}]},
+  halves:   {name:'Полуноты ↓ · ↓ ·', steps:[{t:0,d:'D'},{t:2,d:'D'}]},
+  offbeat:  {name:'Офф-бит (регги)', steps:[
+              {t:0.5,d:'D'},{t:1.5,d:'D'},{t:2.5,d:'D'},{t:3.5,d:'D'}]},
+  pick8:    {name:'Перебор 6-3-2-1', pick:true, steps:[
+              {t:0,p:0},{t:0.5,p:1},{t:1,p:2},{t:1.5,p:3},
+              {t:2,p:0},{t:2.5,p:1},{t:3,p:2},{t:3.5,p:3}]},
+  pick4:    {name:'Щипок: бас-3-2-1', pick:true, steps:[
+              {t:0,p:0},{t:1,p:1},{t:2,p:2},{t:3,p:3}]}
+};
+
+function pickOrder(notes){
+  const n = notes.length;
+  if(n <= 2) return notes.map((_,i)=>i);
+  return [...new Set([0, n-1, n-2, n-3].filter(i => i >= 0))];
+}
+
+/* ---- построение аккордовой вертикали ---- */
+function pianoVoicing(name){
+  const p = parseChord(name);
+  if(!p) return [60,64,67];
+  const root = 48 + p.pc;
+  const bass = (p.bassPc != null) ? (36 + p.bassPc) : (root - 12);
+  return [bass, ...p.intervals.map(iv => root + iv).filter(m => m < 80)];
+}
+function voicing(card, chordName){
+  const inst = STATE.instrument;
+  if(inst !== 'piano'){
+    const sh = shapeFor(chordName, inst);
+    if(sh){
+      const tune = inst === 'ukulele' ? UKE_TUNING : GUITAR_TUNING;
+      const notes = sh.map((f,i) => f < 0 ? null : tune[i] + f).filter(x => x != null);
+      if(notes.length) return notes;
+    }
+  }
+  return pianoVoicing(chordName);
+}
+
+/* ---- плеер ---- */
+const Player = {
+  card:null, playing:false, raf:null, timer:null, endTimer:null,
+  barDur:0, beatDur:0, startTime:0, nextBarTime:0, nextBar:0,
+  loop:true, curBar:-1,
+
+  play(card){
+    if(!Engine.init()){ toast('Звук недоступен в этом браузере'); return; }
+    this.stop();
+    this.card = card;
+    this.playing = true;
+    this.beatDur = 60 / card.bpm;
+    this.barDur = this.beatDur * 4;
+    this.startTime = Engine.ac.currentTime + 0.26;
+    this.nextBarTime = this.startTime;
+    this.nextBar = 0;
+    this.curBar = -1;
+    setPlayUI(card, true);
+    this.timer = setInterval(() => this.schedule(), 100);
+    this.schedule();
+    this.raf = requestAnimationFrame(() => this.loop_());
+  },
+
+  schedule(){
+    if(!this.playing || !this.card) return;
+    const ac = Engine.ac, ahead = ac.currentTime + 0.9;
+    const chords = this.card.chords;
+    const maxBars = this.loop ? Infinity : chords.length;
+    while(this.nextBar < maxBars && this.nextBarTime < ahead){
+      this.bar(chords[this.nextBar % chords.length], this.nextBarTime);
+      this.nextBar++;
+      this.nextBarTime += this.barDur;
+    }
+    if(!this.loop && this.nextBar >= chords.length && this.timer){
+      clearInterval(this.timer); this.timer = null;
+      const wait = Math.max(0, this.nextBarTime - ac.currentTime) + 0.9;
+      this.endTimer = setTimeout(() => this.stop(), wait * 1000);
+    }
+  },
+
+  bar(chordName, t0){
+    const card = this.card;
+    const notes = voicing(card, chordName);
+    const pat = PATTERNS[card.pattern] || PATTERNS.six;
+    const beat = this.beatDur;
+    if(pat.pick){
+      const sorted = notes.slice().sort((a,b) => a - b);
+      const order = pickOrder(sorted);
+      pat.steps.forEach(s => {
+        const m = sorted[order[s.p % order.length]];
+        if(m != null) Engine.note(midiToFreq(m), t0 + s.t * beat, 0.115, 1.8);
+      });
+    } else {
+      pat.steps.forEach(s => Engine.strum(notes, t0 + s.t * beat, s.d, 0.105));
+    }
+  },
+
+  loop_(){
+    if(!this.playing || !this.card) return;
+    const elapsed = Engine.ac.currentTime - this.startTime;
+    const b = Math.floor(elapsed / this.barDur);
+    if(b >= 0 && b !== this.curBar){
+      this.curBar = b;
+      setActive(this.card, b % this.card.chords.length);
+    }
+    this.raf = requestAnimationFrame(() => this.loop_());
+  },
+
+  stop(){
+    const card = this.card;
+    this.playing = false;
+    if(this.timer){ clearInterval(this.timer); this.timer = null; }
+    if(this.endTimer){ clearTimeout(this.endTimer); this.endTimer = null; }
+    if(this.raf){ cancelAnimationFrame(this.raf); this.raf = null; }
+    if(card){ setActive(card, -1); setPlayUI(card, false); }
+    this.card = null;
+    const ac = Engine.ac;
+    if(ac && Engine.bus){
+      const t = ac.currentTime, g = Engine.bus.gain;
+      g.cancelScheduledValues(t);
+      g.setValueAtTime(g.value, t);
+      g.linearRampToValueAtTime(0.0001, t + 0.06);
+      g.setValueAtTime(0.8, t + 0.12);
+    }
+  }
+};
+
+/* =========================================================
+   3. ДАННЫЕ КАРТОЧЕК
+   ========================================================= */
+const LEVELS = {1:'Легко', 2:'Средне', 3:'Сложно'};
+
+const DEFAULT_CARDS = [
+  {id:'d1', title:'Ночной город', artist:'инди-баллада', style:'Перебор', key:'Am',
+   bpm:78, level:1, pattern:'pick8', chords:['Am','F','C','G'],
+   c1:'#1b2a5e', c2:'#3d1a5e', likes:1284, shares:96},
+  {id:'d2', title:'Костёр на пляже', artist:'акустика у моря', style:'Бой', key:'G',
+   bpm:96, level:1, pattern:'six', chords:['G','D','Em','C'],
+   c1:'#5e2a12', c2:'#8a4a10', likes:942, shares:61},
+  {id:'d3', title:'Дворовый блюз', artist:'12 тактов', style:'Блюз', key:'A',
+   bpm:104, level:2, pattern:'offbeat',
+   chords:['A7','A7','A7','A7','D7','D7','A7','A7','E7','D7','A7','E7'],
+   c1:'#3a2450', c2:'#6a2a2a', likes:2130, shares:188},
+  {id:'d4', title:'Полночь', artist:'баллада под пиано', style:'Пиано', key:'C',
+   bpm:68, level:1, pattern:'quarters', chords:['C','G/B','Am','F'],
+   c1:'#123a4a', c2:'#2a1a4a', likes:776, shares:44},
+  {id:'d5', title:'Инди-рок', artist:'гаражная сцена', style:'Бой', key:'Em',
+   bpm:132, level:2, pattern:'six', chords:['Em','C','G','D'],
+   c1:'#4a1a3a', c2:'#1a2a5a', likes:1655, shares:120},
+  {id:'d6', title:'Романс', artist:'классика у костра', style:'Перебор', key:'Am',
+   bpm:66, level:3, pattern:'pick4',
+   chords:['Am','E7','Am','A7','Dm','Am','E7','Am'],
+   c1:'#2a1a1a', c2:'#5a3a10', likes:604, shares:73},
+  {id:'d7', title:'Регги-лето', artist:'off-beat вайб', style:'Бой', key:'G',
+   bpm:84, level:1, pattern:'offbeat', chords:['G','D','Em','C'],
+   c1:'#0f4a2a', c2:'#7a6a10', likes:1889, shares:142},
+  {id:'d8', title:'Джангл-поп', artist:'четыре аккорда', style:'Бой', key:'C',
+   bpm:118, level:1, pattern:'six', chords:['C','Am','F','G'],
+   c1:'#3a1a5a', c2:'#1a4a5a', likes:3021, shares:255},
+  {id:'d9', title:'Сюита (джаз)', artist:'maj7-настроение', style:'Перебор', key:'C',
+   bpm:92, level:2, pattern:'pick4', chords:['Cmaj7','Am7','Dm7','G7'],
+   c1:'#1a1a3a', c2:'#4a2a1a', likes:511, shares:38},
+  {id:'d10', title:'Восход', artist:'утренний перебор', style:'Перебор', key:'F',
+   bpm:88, level:1, pattern:'pick8', chords:['F','C','G','Am'],
+   c1:'#5a3a0a', c2:'#1a3a5a', likes:1204, shares:88},
+  {id:'d11', title:'Цыганочка', artist:'быстрый бой', style:'Бой', key:'Am',
+   bpm:148, level:3, pattern:'six', chords:['Am','G','F','E7'],
+   c1:'#5a1020', c2:'#2a1a0a', likes:933, shares:67}
+];
+
+/* =========================================================
+   4. СОСТОЯНИЕ
+   ========================================================= */
+const STATE = {
+  instrument: localStorage.getItem('ct_inst') || 'guitar',
+  filter: 'all',
+  liked: new Set(JSON.parse(localStorage.getItem('ct_liked') || '[]')),
+  saved: new Set(JSON.parse(localStorage.getItem('ct_saved') || '[]')),
+  cards: []
+};
+
+function loadCards(){
+  let custom = [];
+  try{ custom = JSON.parse(localStorage.getItem('ct_custom') || '[]'); }catch(e){}
+  STATE.cards = [...custom, ...DEFAULT_CARDS];
+}
+function saveCustom(){
+  const custom = STATE.cards.filter(c => c.id.startsWith('u'));
+  localStorage.setItem('ct_custom', JSON.stringify(custom));
+}
+function saveSets(){
+  localStorage.setItem('ct_liked', JSON.stringify([...STATE.liked]));
+  localStorage.setItem('ct_saved', JSON.stringify([...STATE.saved]));
+}
+
+/* =========================================================
+   5. РЕНДЕР
+   ========================================================= */
+const feed = document.getElementById('feed');
+const esc = s => String(s).replace(/[&<>"']/g, c =>
+  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function diagramSVG(shape){
+  const n = shape.length;
+  const S = 10, FR = 15, ROWS = 5, PL = 14, PR = 8, TOP = 15;
+  const W = PL + PR + (n - 1) * S;
+  const H = TOP + ROWS * FR + 8;
+  const fretted = shape.filter(f => f > 0);
+  let base = 0;
+  if(fretted.length){
+    const mn = Math.min(...fretted), mx = Math.max(...fretted);
+    if(mx > ROWS) base = Math.max(0, mn - 1);
+  }
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">`;
+  for(let k = 0; k <= ROWS; k++){
+    const y = TOP + k * FR;
+    const nut = (k === 0 && base === 0);
+    s += `<line x1="${PL}" y1="${y}" x2="${PL + (n-1)*S}" y2="${y}"
+      stroke="currentColor" stroke-width="${nut ? 3 : 1}"
+      opacity="${nut ? 0.85 : 0.3}"/>`;
+  }
+  for(let i = 0; i < n; i++){
+    const x = PL + i * S;
+    s += `<line x1="${x}" y1="${TOP}" x2="${x}" y2="${TOP + ROWS*FR}"
+      stroke="currentColor" stroke-width="${(1.5 - i*0.1).toFixed(2)}" opacity="0.45"/>`;
+  }
+  for(let i = 0; i < n; i++){
+    const f = shape[i], x = PL + i * S;
+    if(f === -1){
+      s += `<path d="M${x-3} ${TOP-11} l6 6 M${x+3} ${TOP-11} l-6 6"
+        stroke="currentColor" stroke-width="1.2" opacity="0.65"/>`;
+    } else if(f === 0){
+      s += `<circle cx="${x}" cy="${TOP-8}" r="3" fill="none"
+        stroke="currentColor" stroke-width="1.2" opacity="0.75"/>`;
+    } else {
+      const y = TOP + (f - base - 0.5) * FR;
+      s += `<circle cx="${x}" cy="${y}" r="3.8" fill="currentColor"/>`;
+    }
+  }
+  if(base > 0){
+    s += `<text x="${PL-3}" y="${TOP+FR-4}" font-size="8" text-anchor="end"
+      fill="currentColor" opacity="0.65">${base+1}</text>`;
+  }
+  return s + '</svg>';
+}
+
+function pianoHTML(pcs){
+  const WHITE = [0,2,4,5,7,9,11];
+  const BLACK = [{a:0,pc:1},{a:1,pc:3},{a:3,pc:6},{a:4,pc:8},{a:5,pc:10}];
+  const OCT = 2, total = OCT * 7;
+  const wW = 100 / total, bW = wW * 0.62;
+  let h = '<div class="piano">';
+  for(let o = 0; o < OCT; o++){
+    for(let i = 0; i < 7; i++){
+      const pc = WHITE[i];
+      const on = pcs.has(pc) ? ' on' : '';
+      const lbl = (o === 0 || pcs.has(pc)) ? NOTE_NAMES[pc] : '';
+      h += `<div class="wk${on}" style="width:${wW}%"><span>${lbl}</span></div>`;
+    }
+  }
+  for(let o = 0; o < OCT; o++){
+    for(const b of BLACK){
+      const gi = o * 7 + b.a;
+      const left = (gi + 1) * wW - bW / 2;
+      const on = pcs.has(b.pc) ? ' on' : '';
+      h += `<div class="bk${on}" style="left:${left}%;width:${bW}%"></div>`;
+    }
+  }
+  return h + '</div>';
+}
+
+function buildCard(card){
+  const el = document.createElement('article');
+  el.className = 'card';
+  el.dataset.id = card.id;
+  el.style.setProperty('--c1', card.c1 || '#1b2a5e');
+  el.style.setProperty('--c2', card.c2 || '#3d1a5e');
+
+  const patOpts = Object.entries(PATTERNS).map(([k,v]) =>
+    `<option value="${k}"${k === card.pattern ? ' selected' : ''}>${v.name}</option>`).join('');
+
+  el.innerHTML = `
+    <div class="bg"></div>
+    <div class="wrap">
+      <div class="col">
+        <div class="metarow">
+          <span class="badge">${esc(card.style || 'Аккорды')}</span>
+          <span class="badge">${esc(card.key || '—')}</span>
+          <span class="badge">${card.bpm} BPM</span>
+          <span class="badge lvl-${card.level || 1}">${LEVELS[card.level || 1]}</span>
+        </div>
+        <h2 class="title">${esc(card.title)}</h2>
+        <p class="sub">${esc(card.artist || '')} · ${card.chords.length} аккорда</p>
+        <div class="prog"></div>
+        <div class="viz"></div>
+        <div class="ctrl">
+          <button class="play" data-play>▶</button>
+          <select class="pattern" data-pattern>${patOpts}</select>
+          <button class="iconbtn on" data-loop title="Повтор">🔁</button>
+        </div>
+        <div class="bpmrow">
+          <span>ТЕМП</span>
+          <input type="range" min="50" max="180" step="1" value="${card.bpm}" data-bpm>
+          <b data-bpmval>${card.bpm}</b>
+        </div>
+      </div>
+      <aside class="rail">
+        <div class="rail-item">
+          <button class="rail-btn${STATE.liked.has(card.id) ? ' on' : ''}" data-like>♥</button>
+          <span data-likes>${card.likes || 0}</span>
+        </div>
+        <div class="rail-item">
+          <button class="rail-btn${STATE.saved.has(card.id) ? ' on' : ''}" data-save>🔖</button>
+          <span data-saves>${STATE.saved.has(card.id) ? '✓' : '…'}</span>
+        </div>
+        <div class="rail-item">
+          <button class="rail-btn" data-share>↗</button>
+          <span>${card.shares || 0}</span>
+        </div>
+      </aside>
+    </div>`;
+
+  card._el = el;
+  card._activeIdx = -1;
+
+  /* прогрессия */
+  const prog = el.querySelector('.prog');
+  card.chords.forEach((c, i) => {
+    const b = document.createElement('button');
+    b.className = 'chip';
+    b.textContent = c;
+    b.addEventListener('click', () => {
+      Engine.init();
+      const notes = voicing(card, c);
+      const t = Engine.ac.currentTime + 0.05;
+      if(PATTERNS[card.pattern] && PATTERNS[card.pattern].pick){
+        const sorted = notes.slice().sort((a,b)=>a-b);
+        sorted.forEach((m, k) => Engine.note(midiToFreq(m), t + k*0.09, 0.13, 1.8));
+      } else {
+        Engine.strum(notes, t, 'D', 0.12);
+      }
+      setActive(card, i);
+      setTimeout(() => { if(!Player.playing) setActive(card, -1); }, 900);
+    });
+    prog.appendChild(b);
+  });
+
+  renderViz(card);
+
+  /* кнопка play */
+  el.querySelector('[data-play]').addEventListener('click', () => {
+    if(Player.playing && Player.card === card) Player.stop();
+    else Player.play(card);
+  });
+
+  /* паттерн */
+  el.querySelector('[data-pattern]').addEventListener('change', e => {
+    card.pattern = e.target.value;
+    if(Player.playing && Player.card === card) Player.play(card);
+  });
+
+  /* повтор */
+  const loopBtn = el.querySelector('[data-loop]');
+  loopBtn.addEventListener('click', () => {
+    Player.loop = !Player.loop;
+    document.querySelectorAll('[data-loop]').forEach(b =>
+      b.classList.toggle('on', Player.loop));
+    toast(Player.loop ? 'Повтор включён' : 'Повтор выключен');
+  });
+
+  /* темп */
+  const range = el.querySelector('[data-bpm]');
+  const bval  = el.querySelector('[data-bpmval]');
+  range.addEventListener('input', () => {
+    bval.textContent = range.value;
+    card.bpm = +range.value;
+  });
+  range.addEventListener('change', () => {
+    if(Player.playing && Player.card === card) Player.play(card);
+  });
+
+  /* лайк / сохранение / шаринг */
+  el.querySelector('[data-like]').addEventListener('click', e => {
+    const btn = e.currentTarget;
+    if(STATE.liked.has(card.id)){ STATE.liked.delete(card.id); card.likes--; }
+    else { STATE.liked.add(card.id); card.likes++; }
+    btn.classList.toggle('on', STATE.liked.has(card.id));
+    el.querySelector('[data-likes]').textContent = card.likes;
+    saveSets();
+  });
+
+  el.querySelector('[data-save]').addEventListener('click', e => {
+    const btn = e.currentTarget;
+    if(STATE.saved.has(card.id)) STATE.saved.delete(card.id);
+    else STATE.saved.add(card.id);
+    btn.classList.toggle('on', STATE.saved.has(card.id));
+    el.querySelector('[data-saves]').textContent = STATE.saved.has(card.id) ? '✓' : '…';
+    saveSets();
+    toast(STATE.saved.has(card.id) ? 'Добавлено в избранное' : 'Удалено из избранного');
+  });
+
+  el.querySelector('[data-share]').addEventListener('click', async () => {
+    const text = `${card.title} — аккорды: ${card.chords.join(' ')} (${card.bpm} BPM)`;
+    try{
+      if(navigator.share) await navigator.share({title:'АккордТок', text});
+      else { await navigator.clipboard.writeText(text); toast('Скопировано'); }
+    }catch(e){}
+  });
+
+  return el;
+}
+
+/* рендер визуализации аккордов */
+function renderViz(card){
+  const viz = card._el.querySelector('.viz');
+  card._viz = viz;
+  if(STATE.instrument === 'piano'){
+    viz.classList.add('piano-mode');
+    viz.innerHTML = '<div class="pianowrap"></div><div class="pianolabel"></div>';
+    card._pw = viz.querySelector('.pianowrap');
+    card._pl = viz.querySelector('.pianolabel');
+    renderPiano(card, Math.max(0, card._activeIdx));
+  } else {
+    viz.classList.remove('piano-mode');
+    viz.innerHTML = card.chords.map((c, i) => {
+      const sh = shapeFor(c, STATE.instrument);
+      if(!sh){
+        return `<div class="dg" data-i="${i}" style="justify-content:center">
+          <span style="font-size:22px;opacity:.5">?</span><span>${esc(c)}</span></div>`;
+      }
+      return `<div class="dg" data-i="${i}">${diagramSVG(sh)}<span>${esc(c)}</span></div>`;
+    }).join('');
+    viz.querySelectorAll('.dg').forEach((d, i) => {
+      d.addEventListener('click', () => {
+        Engine.init();
+        const notes = voicing(card, card.chords[i]);
+        const t = Engine.ac.currentTime + 0.05;
+        Engine.strum(notes, t, 'D', 0.12);
+        setActive(card, i);
+        setTimeout(() => { if(!Player.playing) setActive(card, -1); }, 900);
+      });
+    });
+  }
+  if(card._activeIdx >= 0) setActive(card, card._activeIdx);
+}
+
+function renderPiano(card, idx){
+  const name = card.chords[idx % card.chords.length];
+  const p = parseChord(name);
+  const pcs = new Set();
+  if(p){
+    pcs.add(p.pc);
+    p.intervals.forEach(iv => pcs.add((p.pc + iv) % 12));
+    if(p.bassPc != null) pcs.add(p.bassPc);
+  }
+  card._pw.innerHTML = pianoHTML(pcs);
+  card._pl.textContent = name;
+}
+
+function setActive(card, idx){
+  card._activeIdx = idx;
+  const el = card._el;
+  if(!el) return;
+  el.querySelectorAll('.chip').forEach((c, i) => c.classList.toggle('active', i === idx));
+  if(STATE.instrument === 'piano'){
+    if(card._pw) renderPiano(card, idx >= 0 ? idx : 0);
+  } else {
+    el.querySelectorAll('.dg').forEach((d, i) => d.classList.toggle('active', i === idx));
+  }
+}
+
+function setPlayUI(card, playing){
+  const btn = card._el && card._el.querySelector('[data-play]');
+  if(!btn) return;
+  btn.textContent = playing ? '❚❚' : '▶';
+  btn.classList.toggle('playing', playing);
+}
+
+/* =========================================================
+   6. СБОРКА ЛЕНТЫ
+   ========================================================= */
+function renderFeed(){
+  Player.stop();
+  feed.innerHTML = '';
+  let list = STATE.cards;
+  if(STATE.filter === 'saved') list = STATE.cards.filter(c => STATE.saved.has(c.id));
+
+  if(!list.length){
+    feed.innerHTML = `<div class="empty"><b>⭐</b>
+      <div>Здесь пока пусто.<br>Сохраняй аккорды кнопкой «закладка».</div></div>`;
+    feed.style.scrollSnapType = 'none';
+    return;
+  }
+  feed.style.scrollSnapType = 'y mandatory';
+
+  list.forEach(card => feed.appendChild(buildCard(card)));
+  feed.scrollTop = 0;
+  observeCards();
+}
+
+let io = null;
+function observeCards(){
+  if(io) io.disconnect();
+  io = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if(!e.isIntersecting && Player.card && Player.card._el === e.target){
+        Player.stop();
+      }
+    });
+  }, {threshold: 0.55});
+  feed.querySelectorAll('.card').forEach(c => io.observe(c));
+}
+
+/* =========================================================
+   7. UI: топбар, навигация, модалка, тосты
+   ========================================================= */
+const seg = document.getElementById('seg');
+seg.querySelectorAll('button').forEach(b => {
+  b.classList.toggle('on', b.dataset.inst === STATE.instrument);
+  b.addEventListener('click', () => {
+    STATE.instrument = b.dataset.inst;
+    localStorage.setItem('ct_inst', STATE.instrument);
+    seg.querySelectorAll('button').forEach(x =>
+      x.classList.toggle('on', x === b));
+    STATE.cards.forEach(c => { if(c._el) renderViz(c); });
+    toast('Инструмент: ' + b.textContent);
+  });
+});
+
+const navBtns = document.querySelectorAll('.bottomnav button');
+navBtns.forEach(b => {
+  b.addEventListener('click', () => {
+    const n = b.dataset.nav;
+    if(n === 'create'){ openModal(); return; }
+    STATE.filter = n;
+    navBtns.forEach(x => x.classList.toggle('on', x === b));
+    renderFeed();
+  });
+});
+
+/* модалка */
+const modal = document.getElementById('modal');
+function openModal(){
+  document.getElementById('m-title').value = '';
+  document.getElementById('m-chords').value = '';
+  document.getElementById('m-key').value = '';
+  document.getElementById('m-bpm').value = 90;
+  modal.classList.remove('hidden');
+}
+document.getElementById('m-cancel').addEventListener('click',
+  () => modal.classList.add('hidden'));
+modal.addEventListener('click', e => { if(e.target === modal) modal.classList.add('hidden'); });
+
+document.getElementById('m-add').addEventListener('click', () => {
+  const title = document.getElementById('m-title').value.trim() || 'Моя песня';
+  const raw = document.getElementById('m-chords').value.trim();
+  const bpm = Math.min(200, Math.max(40, +document.getElementById('m-bpm').value || 90));
+  const key = document.getElementById('m-key').value.trim() || '—';
+
+  const chords = raw.split(/\s+/).filter(Boolean).map(s => {
+    const c = s.charAt(0).toUpperCase() + s.slice(1).replace('b', 'b').replace('#', '#');
+    return c;
+  }).map(s => s.replace(/([a-g])([#b])/, (m, a, b) => a.toUpperCase() + b))
+    .map(s => s.charAt(0).toUpperCase() + s.slice(1));
+
+  const valid = chords.filter(c => parseChord(c));
+  if(valid.length < 2){ toast('Введи минимум 2 аккорда, напр. Am F C G'); return; }
+
+  const palettes = [
+    ['#1b2a5e','#3d1a5e'], ['#5e2a12','#8a4a10'], ['#0f4a2a','#7a6a10'],
+    ['#4a1a3a','#1a2a5a'], ['#123a4a','#2a1a4a'], ['#5a1020','#2a1a0a']
+  ];
+  const col = palettes[Math.floor(Math.random() * palettes.length)];
+
+  const card = {
+    id: 'u' + Date.now(),
+    title, artist: 'мой пост', style: 'Своё', key,
+    bpm, level: 1, pattern: 'six', chords: valid,
+    c1: col[0], c2: col[1], likes: 0, shares: 0
+  };
+  STATE.cards.unshift(card);
+  saveCustom();
+  modal.classList.add('hidden');
+  STATE.filter = 'feed';
+  navBtns.forEach(x => x.classList.toggle('on', x.dataset.nav === 'feed'));
+  renderFeed();
+  toast('Пост добавлен 🎉');
+});
+
+/* тост */
+let toastT;
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastT);
+  toastT = setTimeout(() => t.classList.remove('show'), 1700);
+}
+
+/* =========================================================
+   8. СТАРТ
+   ========================================================= */
+loadCards();
+renderFeed();
+
+/* пауза, если вкладка скрыта */
+document.addEventListener('visibilitychange', () => {
+  if(document.hidden) Player.stop();
+});
+
+/* пробел = play/pause на видимой карточке */
+document.addEventListener('keydown', e => {
+  if(e.code === 'Space' && !modal.classList.contains('hidden') === false){
+    e.preventDefault();
+    if(Player.playing) Player.stop();
+    else {
+      const cards = [...feed.querySelectorAll('.card')];
+      const r = feed.scrollTop, h = feed.clientHeight;
+      const idx = Math.round(r / h);
+      const el = cards[idx];
+      const card = STATE.cards.find(c => c.id === el.dataset.id);
+      if(card) Player.play(card);
+    }
+  }
+});
+</script>
+</body>
+</html>
